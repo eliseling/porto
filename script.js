@@ -3,6 +3,20 @@ const colors = {
   "Small bites":"#f97316","Attractions":"#3b82f6","Shopping":"#a855f7"
 };
 
+const categoryLabels = {
+  "Hotel":"Hotell",
+  "Snacks":"Snacks",
+  "Dinner":"Middag",
+  "Lunch":"Lunsj",
+  "Small bites":"Snacks",
+  "Attractions":"Attraksjoner",
+  "Shopping":"Shopping"
+};
+
+function translateCategory(category) {
+  return categoryLabels[category] || category;
+}
+
 const hotelName = "Renaissance Porto Lapa Hotel";
 
 function generateColor(category) {
@@ -84,7 +98,7 @@ function updateRoutePanel() {
   const routeInfo = document.getElementById("routeInfo");
   const selectedEl = document.getElementById("selectedStops");
   const distanceInfo = document.getElementById("distanceInfo");
-  routeInfo.textContent = origin ? `Origin: ${originIsUser ? "Your position" : origin.name}` : "Origin: Hotel";
+  routeInfo.textContent = origin ? `Start: ${originIsUser ? "Din posisjon" : origin.name}` : "Start: Hotellet";
   
   if (selected.length && origin) {
     const stops = selected
@@ -98,15 +112,15 @@ function updateRoutePanel() {
     const ordered = orderStopsByNearest(origin, stops);
     selectedEl.innerHTML = ordered.length
       ? ordered.map(stop => `<div class="selectedStop" style="background:#0ea5e9; color:white;">${stop.name}</div>`).join("")
-      : "No stops selected yet.";
+      : "Ingen stopp valgt ennå.";
     if (!selected.length) {
-      distanceInfo.textContent = "Choose stops and then tap Show best route.";
+      distanceInfo.textContent = "Velg stopp og trykk Vis beste rute.";
     } else {
-      distanceInfo.textContent = `${ordered.length} stop${ordered.length === 1 ? "" : "s"} selected. Tap Show best route.`;
+      distanceInfo.textContent = `Valgt: ${ordered.length} stopp. Trykk Vis beste rute.`;
     }
   } else {
-    selectedEl.innerHTML = "No stops selected yet.";
-    distanceInfo.textContent = selected.length ? "Choose stops and then tap Show best route." : "Choose stops and then tap Show best route.";
+    selectedEl.innerHTML = "Ingen stopp valgt ennå.";
+    distanceInfo.textContent = "Velg stopp og trykk Vis beste rute.";
   }
 }
 
@@ -150,7 +164,7 @@ function renderUserRoute() {
     total += distanceMeters(current, point);
     current = point;
   });
-  document.getElementById("distanceInfo").textContent = `Best route distance: ${formatDistance(total)} for ${ordered.length} stop${ordered.length === 1 ? "" : "s"}.`;
+  document.getElementById("distanceInfo").textContent = `Beste rute: ${formatDistance(total)} for ${ordered.length} stopp.`;
 }
 
 function setDefaultOrigin() {
@@ -177,19 +191,19 @@ function setUserOrigin(lat, lon) {
 }
 
 function buildPopup(place) {
-  const distanceText = origin ? formatDistance(distanceMeters(origin, { lat: place.lat, lon: place.lon })) : "unknown";
-  const buttonText = selectedStops.has(place.name) ? "Remove from route" : "Add to route";
-  const originText = origin ? (originIsUser ? "your location" : origin.name) : "hotel";
+  const distanceText = origin ? formatDistance(distanceMeters(origin, { lat: place.lat, lon: place.lon })) : "ukjent";
+  const buttonText = selectedStops.has(place.name) ? "Fjern fra ruta" : "Legg til i ruta";
+  const originText = origin ? (originIsUser ? "din posisjon" : origin.name) : "hotellet";
   return `
       <div class="popup-title">${place.name}</div>
-      <div>${place.category} · from hotel: <b>${place.fromHotel}</b></div>
+      <div>${translateCategory(place.category)} · fra hotellet: <b>${place.fromHotel}</b></div>
       <div class="small">${place.note || ""}</div>
-      <div class="small">Distance from ${originText}: <b>${distanceText}</b></div>
+      <div class="small">Avstand fra ${originText}: <b>${distanceText}</b></div>
       <p>
         <button onclick="toggleStop('${place.name.replaceAll("'", "\\'")}')">${buttonText}</button>
         <br>
-        <a target="_blank" href="${directionsUrl(place.name)}">Open walking directions</a><br>
-        <a target="_blank" href="${searchUrl(place.name)}">Open in Google Maps</a>
+        <a target="_blank" href="${directionsUrl(place.name)}">Åpne gangrute</a><br>
+        <a target="_blank" href="${searchUrl(place.name)}">Åpne i Google Maps</a>
       </p>
     `;
 }
@@ -245,12 +259,12 @@ function searchUrl(placeName) {
 }
 
 async function addPlace(place, i, total) {
-  statusEl.textContent = `Adding pin ${i + 1}/${total}: ${place.name}`;
+  statusEl.textContent = `Legger til pin ${i + 1}/${total}: ${place.name}`;
 
   if (!groups[place.category]) groups[place.category] = L.layerGroup().addTo(map);
   if (typeof place.lat !== 'number' || typeof place.lon !== 'number') {
     console.warn(`Missing static coordinates for ${place.name}`);
-    statusEl.textContent = `Missing coordinates for ${place.name}. Skipping.`;
+    statusEl.textContent = `Mangler koordinater for ${place.name}. Hopper over.`;
     return;
   }
 
@@ -270,20 +284,20 @@ function showRoute(routeName) {
     .filter(Boolean)
     .map(marker => marker.getLatLng());
 
-  if (coords.length < 2) return alert("Route still loading. Try again in a moment.");
+  if (coords.length < 2) return alert("Ruten lastes fortsatt. Prøv igjen om et øyeblikk.");
   currentRoute = L.polyline(coords, { weight:5, opacity:.85 }).addTo(map);
   map.fitBounds(currentRoute.getBounds(), { padding:[40,40] });
 }
 
 function buildPanel() {
   document.getElementById("routes").innerHTML = Object.keys(window.ROUTES).map(route =>
-    `<div class="routeBox"><b>${route}</b><br><button onclick="showRoute('${route.replaceAll("'", "\\'")}')">Show route</button></div>`
+    `<div class="routeBox"><b>${route}</b><br><button onclick="showRoute('${route.replaceAll("'", "\\'")}')">Vis rute</button></div>`
   ).join("");
 
   const categories = Array.from(new Set(window.PLACES.map(place => place.category).concat(Object.keys(colors))));
   document.getElementById("filters").innerHTML = categories.map(cat => {
     const color = getColorFor(cat);
-    return `<button class="active" id="btn-${slugify(cat)}" onclick="toggleCategory('${cat}')" style="background:${color}; color:${getContrastText(color)}">${cat}</button>`;
+    return `<button class="active" id="btn-${slugify(cat)}" onclick="toggleCategory('${cat}')" style="background:${color}; color:${getContrastText(color)}">${translateCategory(cat)}</button>`;
   }).join("");
 
   // Ensure all groups exist, even if they have no places
@@ -321,26 +335,26 @@ document.getElementById("clearCache").onclick = () => location.reload();
 
   document.getElementById("locateMe").onclick = () => {
     if (!navigator.geolocation) {
-      statusEl.textContent = "Geolocation is not supported by this browser.";
+      statusEl.textContent = "Geolokalisering støttes ikke av denne nettleseren.";
       return;
     }
-    statusEl.textContent = "Locating you…";
+    statusEl.textContent = "Lokaliserer...";
     navigator.geolocation.getCurrentPosition(position => {
       setUserOrigin(position.coords.latitude, position.coords.longitude);
-      statusEl.textContent = "Using your current location.";
+      statusEl.textContent = "Bruker din nåværende posisjon.";
     }, () => {
-      statusEl.textContent = "Unable to get your location.";
+      statusEl.textContent = "Klarer ikke hente posisjonen din.";
     }, { enableHighAccuracy: true, timeout: 15000 });
   };
 
   document.getElementById("resetOrigin").onclick = () => {
     setDefaultOrigin();
-    statusEl.textContent = "Origin reset to hotel.";
+    statusEl.textContent = "Startpunkt satt til hotellet.";
   };
 
   document.getElementById("showBestRoute").onclick = () => {
     if (!selectedStops.size) {
-      statusEl.textContent = "Please select at least one stop.";
+      statusEl.textContent = "Velg minst ett stopp.";
       return;
     }
     renderUserRoute();
@@ -350,7 +364,7 @@ document.getElementById("clearCache").onclick = () => location.reload();
     selectedStops.clear();
     updateRoutePanel();
     if (userRoute) { map.removeLayer(userRoute); userRoute = null; }
-    statusEl.textContent = "Selected stops cleared.";
+    statusEl.textContent = "Valgte stopp er fjernet.";
   };
 
   document.getElementById("searchBox").oninput = () => {
@@ -379,5 +393,5 @@ document.getElementById("clearCache").onclick = () => location.reload();
       }
     });
     updateMarkers();
-    statusEl.textContent = "Done. Tap any pin for walking directions and choose stops.";
+    statusEl.textContent = "Ingen informasjon enda, kjem det her om det er noe...";
   })();
