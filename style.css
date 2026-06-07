@@ -1,0 +1,47 @@
+html, body { height:100%; margin:0; font-family: system-ui, -apple-system, Segoe UI, Arial, sans-serif; }
+#map { height:100%; width:100%; }
+#panel {
+  position:absolute; z-index:1000; right:12px; top:12px; width:360px; max-height:88vh; overflow:auto;
+  background:#fff; border-radius:18px; padding:14px; box-shadow:0 6px 25px rgba(0,0,0,.25);
+}
+h1 { margin:0 0 6px; font-size:20px; }
+h2 { margin:14px 0 6px; font-size:16px; }
+.hint, #status { color:#555; font-size:13px; line-height:1.35; }
+button {
+  border:1px solid #d1d5db;
+  border-radius:12px; padding:9px 10px; margin:4px 3px; background:#eee; cursor:pointer;
+  font-size:13px;
+}
+#filters button {
+  transition: transform .16s ease, opacity .16s ease, filter .16s ease, box-shadow .16s ease, border-color .16s ease;
+}
+#filters button:not(.active) {
+  opacity:.74;
+  filter: blur(0.7px);
+}
+button.primary { background:#111; color:#fff; border-color:#111; }
+button.active { box-shadow:0 0 0 2px rgba(0,0,0,.12); }
+#searchBox {
+  width: calc(100% - 24px);
+  border:1px solid #d1d5db;
+  border-radius:12px;
+  padding:10px 12px;
+  margin:4px 0 10px;
+  font-size:14px;
+}
+.routeBox { border-top:1px solid #ddd; padding-top:8px; margin-top:8px; }
+.pin {
+  width:18px; height:18px; border-radius:50%; border:3px solid #fff; box-shadow:0 1px 5px #222;
+}
+.pin.current { background:#0ea5e9; border-color:#eef2ff; box-shadow:0 1px 6px rgba(14,165,233,.6); }
+.routeInfo, .selectedStops, #distanceInfo { margin:8px 0 0; font-size:13px; color:#333; line-height:1.4; }
+#selectedStops { display:flex; flex-wrap:wrap; gap:6px; }
+.selectedStop { display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:6px; font-size:13px; }
+.selectedStop span { font-size:12px; }
+#routeControls button { display:inline-block; }
+.popup-title { font-weight:700; margin-bottom:3px; }
+.small { font-size:12px; color:#555; }
+@media (max-width: 800px) {
+  #panel { left:8px; right:8px; bottom:8px; top:auto; width:auto; max-height:42vh; border-radius:16px; }
+  #routeControls button { width: calc(50% - 10px); }
+}

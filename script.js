@@ -1,0 +1,383 @@
+const colors = {
+  "Hotel":"#111111","Snacks":"#f59e0b","Dinner":"#ef4444","Lunch":"#22c55e",
+  "Small bites":"#f97316","Attractions":"#3b82f6","Shopping":"#a855f7"
+};
+
+const hotelName = "Renaissance Porto Lapa Hotel";
+
+function generateColor(category) {
+  let hash = 0;
+  for (let i = 0; i < category.length; i++) hash = ((hash << 5) - hash) + category.charCodeAt(i);
+  const hue = ((hash % 360) + 360) % 360;
+  return `hsl(${hue}, 72%, 52%)`;
+}
+
+function getColorFor(category) {
+  if (!colors[category]) colors[category] = generateColor(category);
+  return colors[category];
+}
+const selectedStops = new Set();
+let origin = null;
+let originIsUser = false;
+let originMarker = null;
+let userRoute = null;
+let currentRoute = null;
+
+const map = L.map("map").setView([41.147, -8.612], 14);
+L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  maxZoom: 19,
+  attribution: "&copy; OpenStreetMap contributors"
+}).addTo(map);
+
+const statusEl = document.getElementById("status");
+const groups = {};
+const markersByName = {};
+
+function iconFor(category) {
+  return L.divIcon({
+    className: "",
+    html: `<div class="pin" style="background:${getColorFor(category)}"></div>`,
+    iconSize:[24,24],
+    iconAnchor:[12,12]
+  });
+}
+
+function locationIcon() {
+  return L.divIcon({
+    className: "",
+    html: `<div class="pin current"></div>`,
+    iconSize:[24,24],
+    iconAnchor:[12,12]
+  });
+}
+
+function getContrastText(hex) {
+  const c = hex.replace("#", "");
+  const r = parseInt(c.substring(0,2), 16);
+  const g = parseInt(c.substring(2,4), 16);
+  const b = parseInt(c.substring(4,6), 16);
+  const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+  return brightness > 150 ? "#111" : "#fff";
+}
+
+function distanceMeters(a, b) {
+  const toRad = x => x * Math.PI / 180;
+  const R = 6371000;
+  const dLat = toRad(b.lat - a.lat);
+  const dLon = toRad(b.lon - a.lon);
+  const lat1 = toRad(a.lat);
+  const lat2 = toRad(b.lat);
+  const sinDLat = Math.sin(dLat/2);
+  const sinDLon = Math.sin(dLon/2);
+  const aVal = sinDLat*sinDLat + Math.cos(lat1)*Math.cos(lat2)*sinDLon*sinDLon;
+  const c = 2 * Math.atan2(Math.sqrt(aVal), Math.sqrt(1-aVal));
+  return R * c;
+}
+
+function formatDistance(meters) {
+  if (meters >= 1000) return `${(meters / 1000).toFixed(1)} km`;
+  return `${Math.round(meters)} m`;
+}
+
+function updateRoutePanel() {
+  const selected = Array.from(selectedStops);
+  const routeInfo = document.getElementById("routeInfo");
+  const selectedEl = document.getElementById("selectedStops");
+  const distanceInfo = document.getElementById("distanceInfo");
+  routeInfo.textContent = origin ? `Origin: ${originIsUser ? "Your position" : origin.name}` : "Origin: Hotel";
+  
+  if (selected.length && origin) {
+    const stops = selected
+      .map(name => markersByName[name])
+      .filter(Boolean)
+      .map(marker => ({
+        name: marker.placeName,
+        lat: marker.getLatLng().lat,
+        lon: marker.getLatLng().lng
+      }));
+    const ordered = orderStopsByNearest(origin, stops);
+    selectedEl.innerHTML = ordered.length
+      ? ordered.map(stop => `<div class="selectedStop" style="background:#0ea5e9; color:white;">${stop.name}</div>`).join("")
+      : "No stops selected yet.";
+    if (!selected.length) {
+      distanceInfo.textContent = "Choose stops and then tap Show best route.";
+    } else {
+      distanceInfo.textContent = `${ordered.length} stop${ordered.length === 1 ? "" : "s"} selected. Tap Show best route.`;
+    }
+  } else {
+    selectedEl.innerHTML = "No stops selected yet.";
+    distanceInfo.textContent = selected.length ? "Choose stops and then tap Show best route." : "Choose stops and then tap Show best route.";
+  }
+}
+
+function orderStopsByNearest(start, stops) {
+  const ordered = [];
+  let current = { lat: start.lat, lon: start.lon };
+  const remaining = stops.slice();
+  while (remaining.length) {
+    let bestIndex = 0;
+    let bestDist = distanceMeters(current, remaining[0]);
+    for (let i = 1; i < remaining.length; i++) {
+      const d = distanceMeters(current, remaining[i]);
+      if (d < bestDist) { bestDist = d; bestIndex = i; }
+    }
+    const next = remaining.splice(bestIndex, 1)[0];
+    ordered.push(next);
+    current = { lat: next.lat, lon: next.lon };
+  }
+  return ordered;
+}
+
+function renderUserRoute() {
+  if (userRoute) { map.removeLayer(userRoute); userRoute = null; }
+  if (currentRoute) { map.removeLayer(currentRoute); currentRoute = null; }
+  const selected = Array.from(selectedStops)
+    .map(name => markersByName[name])
+    .filter(Boolean);
+  if (!selected.length || !origin) return;
+  const stopPoints = selected.map(marker => ({
+    name: marker.placeName,
+    lat: marker.getLatLng().lat,
+    lon: marker.getLatLng().lng
+  }));
+  const ordered = orderStopsByNearest(origin, stopPoints);
+  const coords = [[origin.lat, origin.lon], ...ordered.map(p => [p.lat, p.lon])];
+  userRoute = L.polyline(coords, { color: '#0ea5e9', weight: 5, opacity: 0.9, dashArray: '8,6' }).addTo(map);
+  map.fitBounds(userRoute.getBounds(), { padding: [40, 40] });
+  let total = 0;
+  let current = origin;
+  ordered.forEach(point => {
+    total += distanceMeters(current, point);
+    current = point;
+  });
+  document.getElementById("distanceInfo").textContent = `Best route distance: ${formatDistance(total)} for ${ordered.length} stop${ordered.length === 1 ? "" : "s"}.`;
+}
+
+function setDefaultOrigin() {
+  originIsUser = false;
+  if (markersByName[hotelName]) {
+    const hotel = markersByName[hotelName].getLatLng();
+    origin = { name: hotelName, lat: hotel.lat, lon: hotel.lng };
+    if (originMarker) { map.removeLayer(originMarker); originMarker = null; }
+    updateRoutePanel();
+    renderUserRoute();
+  }
+}
+
+function setUserOrigin(lat, lon) {
+  originIsUser = true;
+  origin = { name: "Your location", lat, lon };
+  if (originMarker) map.removeLayer(originMarker);
+  originMarker = L.marker([lat, lon], { icon: locationIcon() })
+    .addTo(map)
+    .bindPopup("You are here");
+  originMarker.openPopup();
+  updateRoutePanel();
+  renderUserRoute();
+}
+
+function buildPopup(place) {
+  const distanceText = origin ? formatDistance(distanceMeters(origin, { lat: place.lat, lon: place.lon })) : "unknown";
+  const buttonText = selectedStops.has(place.name) ? "Remove from route" : "Add to route";
+  const originText = origin ? (originIsUser ? "your location" : origin.name) : "hotel";
+  return `
+      <div class="popup-title">${place.name}</div>
+      <div>${place.category} · from hotel: <b>${place.fromHotel}</b></div>
+      <div class="small">${place.note || ""}</div>
+      <div class="small">Distance from ${originText}: <b>${distanceText}</b></div>
+      <p>
+        <button onclick="toggleStop('${place.name.replaceAll("'", "\\'")}')">${buttonText}</button>
+        <br>
+        <a target="_blank" href="${directionsUrl(place.name)}">Open walking directions</a><br>
+        <a target="_blank" href="${searchUrl(place.name)}">Open in Google Maps</a>
+      </p>
+    `;
+}
+
+function slugify(text) {
+  return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+}
+
+function setMarkerVisible(marker, visible) {
+  if (marker._icon) {
+    marker._icon.style.display = visible ? '' : 'none';
+  }
+  if (marker._shadow) {
+    marker._shadow.style.display = visible ? '' : 'none';
+  }
+}
+
+function updateMarkers() {
+  const query = document.getElementById('searchBox').value.trim().toLowerCase();
+  window.PLACES.forEach(place => {
+    const marker = markersByName[place.name];
+    const group = groups[place.category];
+    if (!marker || !group) return;
+    
+    const categoryVisible = map.hasLayer(group);
+    const matchesSearch = !query || place.name.toLowerCase().includes(query) || place.category.toLowerCase().includes(query) || place.note.toLowerCase().includes(query);
+    const shouldShow = categoryVisible && matchesSearch;
+    
+    setMarkerVisible(marker, shouldShow);
+    marker._matchesSearch = matchesSearch;
+  });
+}
+
+function toggleStop(placeName) {
+  if (selectedStops.has(placeName)) selectedStops.delete(placeName);
+  else selectedStops.add(placeName);
+  updateRoutePanel();
+  renderUserRoute();
+  const marker = markersByName[placeName];
+  if (marker && marker.isPopupOpen()) {
+    const place = window.PLACES.find(p => p.name === placeName);
+    if (place) marker.setPopupContent(buildPopup(place));
+  }
+}
+
+function directionsUrl(placeName) {
+  return "https://www.google.com/maps/dir/?api=1&destination=" +
+         encodeURIComponent(placeName) + "&travelmode=walking";
+}
+
+function searchUrl(placeName) {
+  return "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(placeName);
+}
+
+async function addPlace(place, i, total) {
+  statusEl.textContent = `Adding pin ${i + 1}/${total}: ${place.name}`;
+
+  if (!groups[place.category]) groups[place.category] = L.layerGroup().addTo(map);
+  if (typeof place.lat !== 'number' || typeof place.lon !== 'number') {
+    console.warn(`Missing static coordinates for ${place.name}`);
+    statusEl.textContent = `Missing coordinates for ${place.name}. Skipping.`;
+    return;
+  }
+
+  const marker = L.marker([place.lat, place.lon], { icon: iconFor(place.category) });
+  marker.placeName = place.name;
+  marker._matchesSearch = true;
+  marker.bindPopup(buildPopup(place));
+  marker.on('popupopen', () => marker.setPopupContent(buildPopup(place)));
+  marker.addTo(groups[place.category]);
+  markersByName[place.name] = marker;
+}
+
+function showRoute(routeName) {
+  if (currentRoute) map.removeLayer(currentRoute);
+  const coords = (window.ROUTES[routeName] || [])
+    .map(name => markersByName[name])
+    .filter(Boolean)
+    .map(marker => marker.getLatLng());
+
+  if (coords.length < 2) return alert("Route still loading. Try again in a moment.");
+  currentRoute = L.polyline(coords, { weight:5, opacity:.85 }).addTo(map);
+  map.fitBounds(currentRoute.getBounds(), { padding:[40,40] });
+}
+
+function buildPanel() {
+  document.getElementById("routes").innerHTML = Object.keys(window.ROUTES).map(route =>
+    `<div class="routeBox"><b>${route}</b><br><button onclick="showRoute('${route.replaceAll("'", "\\'")}')">Show route</button></div>`
+  ).join("");
+
+  const categories = Array.from(new Set(window.PLACES.map(place => place.category).concat(Object.keys(colors))));
+  document.getElementById("filters").innerHTML = categories.map(cat => {
+    const color = getColorFor(cat);
+    return `<button class="active" id="btn-${slugify(cat)}" onclick="toggleCategory('${cat}')" style="background:${color}; color:${getContrastText(color)}">${cat}</button>`;
+  }).join("");
+
+  // Ensure all groups exist, even if they have no places
+  categories.forEach(cat => {
+    if (!groups[cat]) {
+      groups[cat] = L.layerGroup().addTo(map);
+    }
+  });
+
+  updateRoutePanel();
+}
+
+function toggleCategory(cat) {
+  const group = groups[cat];
+  if (!group) return;
+  const btn = document.getElementById("btn-" + slugify(cat));
+  if (map.hasLayer(group)) { 
+    map.removeLayer(group); 
+    btn.classList.remove("active"); 
+  } else { 
+    group.addTo(map); 
+    btn.classList.add("active"); 
+  }
+  // Ensure all markers in this group are properly visible/hidden
+  window.PLACES.filter(p => p.category === cat).forEach(place => {
+    const marker = markersByName[place.name];
+    if (marker) {
+      const shouldShow = marker._matchesSearch !== false && map.hasLayer(group);
+      setMarkerVisible(marker, shouldShow);
+    }
+  });
+}
+
+document.getElementById("clearCache").onclick = () => location.reload();
+
+  document.getElementById("locateMe").onclick = () => {
+    if (!navigator.geolocation) {
+      statusEl.textContent = "Geolocation is not supported by this browser.";
+      return;
+    }
+    statusEl.textContent = "Locating you…";
+    navigator.geolocation.getCurrentPosition(position => {
+      setUserOrigin(position.coords.latitude, position.coords.longitude);
+      statusEl.textContent = "Using your current location.";
+    }, () => {
+      statusEl.textContent = "Unable to get your location.";
+    }, { enableHighAccuracy: true, timeout: 15000 });
+  };
+
+  document.getElementById("resetOrigin").onclick = () => {
+    setDefaultOrigin();
+    statusEl.textContent = "Origin reset to hotel.";
+  };
+
+  document.getElementById("showBestRoute").onclick = () => {
+    if (!selectedStops.size) {
+      statusEl.textContent = "Please select at least one stop.";
+      return;
+    }
+    renderUserRoute();
+  };
+
+  document.getElementById("clearStops").onclick = () => {
+    selectedStops.clear();
+    updateRoutePanel();
+    if (userRoute) { map.removeLayer(userRoute); userRoute = null; }
+    statusEl.textContent = "Selected stops cleared.";
+  };
+
+  document.getElementById("searchBox").oninput = () => {
+    updateMarkers();
+  };
+
+  (async function init() {
+    buildPanel();
+    const bounds = [];
+    for (let i = 0; i < window.PLACES.length; i++) {
+      try {
+        await addPlace(window.PLACES[i], i, window.PLACES.length);
+        bounds.push([window.PLACES[i].lat, window.PLACES[i].lon]);
+      } catch (e) {
+        console.warn(e);
+      }
+    }
+    if (bounds.length) map.fitBounds(bounds, { padding:[35,35] });
+    setDefaultOrigin();
+    // Force all markers visible after load
+    window.PLACES.forEach(place => {
+      const marker = markersByName[place.name];
+      if (marker) {
+        marker._matchesSearch = true;
+        setMarkerVisible(marker, true);
+      }
+    });
+    updateMarkers();
+    statusEl.textContent = "Done. Tap any pin for walking directions and choose stops.";
+  })();

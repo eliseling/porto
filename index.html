@@ -1,0 +1,528 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Porto Walking Map</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="map"></div>
+  <section id="panel">
+    <h1>Porto Walking Map</h1>
+    <p class="hint">Tap a pin for Google Maps walking directions. Pins are preloaded, so the map works without runtime geocoding.</p>
+    <div id="status">Loading map…</div>
+    <h2>Choose route</h2>
+    <div id="routeControls">
+      <button id="locateMe">Use my location</button>
+      <button id="resetOrigin">Default hotel origin</button>
+      <div id="routeInfo" class="hint">Origin: Hotel</div>
+      <div id="selectedStops" class="hint"></div>
+      <button id="showBestRoute" class="primary">Show best route</button>
+      <button id="clearStops">Clear stops</button>
+      <div id="distanceInfo" class="hint"></div>
+    </div>
+    <h2>Search places</h2>
+    <input type="search" id="searchBox" placeholder="Search pins by name or category">
+    <h2>Routes</h2>
+    <div id="routes"></div>
+    <h2>Categories</h2>
+    <div id="filters"></div>
+    <button id="clearCache">Reload map</button>
+  </section>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>window.PLACES = [
+  {
+    "name": "Renaissance Porto Lapa Hotel",
+    "category": "Hotel",
+    "fromHotel": "0 min",
+    "note": "Base hotel",
+    "lat": 41.1583582,
+    "lon": -8.6146217
+  },
+  {
+    "name": "Cookie Club Porto",
+    "category": "Snacks",
+    "fromHotel": "14 min",
+    "note": "Cookies",
+    "lat": 41.1516486,
+    "lon": -8.6177858
+  },
+  {
+    "name": "Manteigaria Fábrica de Pastéis de Nata Porto",
+    "category": "Snacks",
+    "fromHotel": "22 min",
+    "note": "Pastel de nata",
+    "lat": 41.1458429,
+    "lon": -8.6129667
+  },
+  {
+    "name": "La Fresería Porto",
+    "category": "Snacks",
+    "fromHotel": "21 min",
+    "note": "Strawberries with toppings",
+    "lat": 41.1447171,
+    "lon": -8.615892
+  },
+  {
+    "name": "Gurti Porto",
+    "category": "Snacks",
+    "fromHotel": "22 min",
+    "note": "Frozen yoghurt",
+    "lat": 41.1502195,
+    "lon": -8.6103497
+  },
+  {
+    "name": "A Padaria Portuguesa Porto",
+    "category": "Snacks",
+    "fromHotel": "22 min",
+    "note": "Bakery",
+    "lat": 41.151618,
+    "lon": -8.6105684
+  },
+  {
+    "name": "Ristorante Toscano Porto",
+    "category": "Dinner",
+    "fromHotel": "16 min",
+    "note": "Italian",
+    "lat": 41.1747979,
+    "lon": -8.5847637
+  },
+  {
+    "name": "Valentinas Porto",
+    "category": "Dinner",
+    "fromHotel": "15 min",
+    "note": "Italian",
+    "lat": 41.1491853,
+    "lon": -8.6148904
+  },
+  {
+    "name": "Grottu Porto",
+    "category": "Dinner",
+    "fromHotel": "16 min",
+    "note": "Restaurant",
+    "lat": 41.1502195,
+    "lon": -8.6103497
+  },
+  {
+    "name": "Holy Sandwich Shop Porto",
+    "category": "Dinner",
+    "fromHotel": "27 min",
+    "note": "Burgers/sandwiches",
+    "lat": 41.1419178,
+    "lon": -8.6165082
+  },
+  {
+    "name": "Muti Porto",
+    "category": "Dinner",
+    "fromHotel": "17 min",
+    "note": "Pizza",
+    "lat": 41.1492258,
+    "lon": -8.6130578
+  },
+  {
+    "name": "Kungfu Niu Niu Porto",
+    "category": "Dinner",
+    "fromHotel": "14 min",
+    "note": "Chinese",
+    "lat": 41.150401,
+    "lon": -8.6118158
+  },
+  {
+    "name": "Curb Porto",
+    "category": "Dinner",
+    "fromHotel": "16 min",
+    "note": "Burger",
+    "lat": 41.1524463,
+    "lon": -8.619996
+  },
+  {
+    "name": "Tokyo Sushi Porto",
+    "category": "Dinner",
+    "fromHotel": "30 min",
+    "note": "Sushi buffet",
+    "lat": 41.1576447,
+    "lon": -8.6234959
+  },
+  {
+    "name": "Aguacate Tex-Mex Porto",
+    "category": "Dinner",
+    "fromHotel": "23 min",
+    "note": "Tex-Mex",
+    "lat": 41.3426923,
+    "lon": -8.7507267
+  },
+  {
+    "name": "Pedro dos Frangos Porto",
+    "category": "Dinner",
+    "fromHotel": "19 min",
+    "note": "Grilled chicken",
+    "lat": 41.1488204,
+    "lon": -8.6095242
+  },
+  {
+    "name": "Emiglia Pasta Bar Porto",
+    "category": "Dinner",
+    "fromHotel": "22 min",
+    "note": "Fresh pasta",
+    "lat": 41.1489453,
+    "lon": -8.6163602
+  },
+  {
+    "name": "Inbicta 312 Porto",
+    "category": "Dinner",
+    "fromHotel": "19 min",
+    "note": "Chicken/fries/sandwiches",
+    "lat": 41.1488295,
+    "lon": -8.6093729
+  },
+  {
+    "name": "Restaurante A Taska Porto",
+    "category": "Dinner",
+    "fromHotel": "13 min",
+    "note": "Portuguese food",
+    "lat": 41.1503279,
+    "lon": -8.614858
+  },
+  {
+    "name": "KOB by Olivier Porto",
+    "category": "Dinner",
+    "fromHotel": "20 min",
+    "note": "Steakhouse",
+    "lat": 41.1473853,
+    "lon": -8.6135015
+  },
+  {
+    "name": "Zenith Brunch & Cocktail Bar Porto",
+    "category": "Lunch",
+    "fromHotel": "20 min",
+    "note": "Brunch",
+    "lat": 41.1096314,
+    "lon": -8.6215086
+  },
+  {
+    "name": "Garden Porto Café",
+    "category": "Lunch",
+    "fromHotel": "15 min",
+    "note": "Café",
+    "lat": 41.1506223,
+    "lon": -8.61004
+  },
+  {
+    "name": "Brunchit Porto",
+    "category": "Lunch",
+    "fromHotel": "21 min",
+    "note": "Brunch",
+    "lat": 41.1502195,
+    "lon": -8.6103497
+  },
+  {
+    "name": "CA Downtown Porto",
+    "category": "Lunch",
+    "fromHotel": "16 min",
+    "note": "Brunch/coffee",
+    "lat": 41.1484359,
+    "lon": -8.6154991
+  },
+  {
+    "name": "Nicolau Porto",
+    "category": "Lunch",
+    "fromHotel": "13 min",
+    "note": "Pancakes/bowls",
+    "lat": 41.1454906,
+    "lon": -8.6095146
+  },
+  {
+    "name": "Negra Café Baixa Porto",
+    "category": "Lunch",
+    "fromHotel": "18 min",
+    "note": "Coffee/lunch",
+    "lat": 41.1520681,
+    "lon": -8.606352
+  },
+  {
+    "name": "Honest Greens José Falcão Porto",
+    "category": "Lunch",
+    "fromHotel": "14 min",
+    "note": "Healthy food",
+    "lat": 41.1498955,
+    "lon": -8.6141858
+  },
+  {
+    "name": "Early Porto",
+    "category": "Lunch",
+    "fromHotel": "13 min",
+    "note": "Brunch/coffee",
+    "lat": 41.1525796,
+    "lon": -8.6178186
+  },
+  {
+    "name": "Lazy Club Porto",
+    "category": "Lunch",
+    "fromHotel": "14 min",
+    "note": "Café",
+    "lat": 41.1496498,
+    "lon": -8.6147418
+  },
+  {
+    "name": "Potato Project Porto",
+    "category": "Small bites",
+    "fromHotel": "23 min",
+    "note": "Loaded fries",
+    "lat": 41.1478479,
+    "lon": -8.6125191
+  },
+  {
+    "name": "Las Muns Porto",
+    "category": "Small bites",
+    "fromHotel": "20 min",
+    "note": "Empanadas",
+    "lat": 41.1447171,
+    "lon": -8.615892
+  },
+  {
+    "name": "Gazela Porto",
+    "category": "Small bites",
+    "fromHotel": "29 min",
+    "note": "Hotdogs",
+    "lat": 41.1457199,
+    "lon": -8.6029082
+  },
+  {
+    "name": "Francesinha Café Porto",
+    "category": "Small bites",
+    "fromHotel": "22 min",
+    "note": "Francesinha",
+    "lat": 41.1602093,
+    "lon": -8.6006813
+  },
+  {
+    "name": "McDonald's Imperial Porto",
+    "category": "Small bites",
+    "fromHotel": "20 min",
+    "note": "Historic interior",
+    "lat": 41.1466344,
+    "lon": -8.6107969
+  },
+  {
+    "name": "Capela das Almas Porto",
+    "category": "Attractions",
+    "fromHotel": "21 min",
+    "note": "Blue tile church",
+    "lat": 41.1498314,
+    "lon": -8.6055786
+  },
+  {
+    "name": "Church of St. Ildefonso Porto",
+    "category": "Attractions",
+    "fromHotel": "27 min",
+    "note": "Historic church",
+    "lat": 41.1459797,
+    "lon": -8.6068074
+  },
+  {
+    "name": "São Bento Station Porto",
+    "category": "Attractions",
+    "fromHotel": "25 min",
+    "note": "Train station",
+    "lat": 41.1454574,
+    "lon": -8.6097578
+  },
+  {
+    "name": "Livraria Lello Porto",
+    "category": "Attractions",
+    "fromHotel": "18 min",
+    "note": "Bookstore",
+    "lat": 41.1468317,
+    "lon": -8.6148485
+  },
+  {
+    "name": "Clérigos Tower Porto",
+    "category": "Attractions",
+    "fromHotel": "21 min",
+    "note": "View tower",
+    "lat": 41.1457718,
+    "lon": -8.614189
+  },
+  {
+    "name": "Igreja do Carmo Porto",
+    "category": "Attractions",
+    "fromHotel": "18 min",
+    "note": "Blue tile wall",
+    "lat": 41.147456,
+    "lon": -8.6162547
+  },
+  {
+    "name": "Jardins do Palácio de Cristal Porto",
+    "category": "Attractions",
+    "fromHotel": "24 min",
+    "note": "Gardens/view",
+    "lat": 41.1470339,
+    "lon": -8.6262765
+  },
+  {
+    "name": "Largo da Pena Ventosa Porto",
+    "category": "Attractions",
+    "fromHotel": "29 min",
+    "note": "Candyland courtyard",
+    "lat": 41.1426958,
+    "lon": -8.6130957
+  },
+  {
+    "name": "Porto Cathedral Sé Porto",
+    "category": "Attractions",
+    "fromHotel": "28 min",
+    "note": "Cathedral",
+    "lat": 41.1427992,
+    "lon": -8.6112059
+  },
+  {
+    "name": "Palácio da Bolsa Porto",
+    "category": "Attractions",
+    "fromHotel": "29 min",
+    "note": "Historic palace",
+    "lat": 41.1413117,
+    "lon": -8.6160004
+  },
+  {
+    "name": "Church of St. Francis Porto",
+    "category": "Attractions",
+    "fromHotel": "30 min",
+    "note": "Church",
+    "lat": 41.1409824,
+    "lon": -8.6157074
+  },
+  {
+    "name": "Ribeira Porto",
+    "category": "Attractions",
+    "fromHotel": "26 min",
+    "note": "River district",
+    "lat": 41.1454574,
+    "lon": -8.6097578
+  },
+  {
+    "name": "Luís I Bridge Porto",
+    "category": "Attractions",
+    "fromHotel": "28 min",
+    "note": "Bridge",
+    "lat": 41.1401696,
+    "lon": -8.6094576
+  },
+  {
+    "name": "Vila Nova de Gaia Portugal",
+    "category": "Attractions",
+    "fromHotel": "1h 4min",
+    "note": "Across the river",
+    "lat": 41.1292264,
+    "lon": -8.6057396
+  },
+  {
+    "name": "Teleférico de Gaia Vila Nova de Gaia",
+    "category": "Attractions",
+    "fromHotel": "45 min",
+    "note": "Cable car",
+    "lat": 41.1376167,
+    "lon": -8.6129114
+  },
+  {
+    "name": "Half Rabbit Vila Nova de Gaia",
+    "category": "Attractions",
+    "fromHotel": "45 min",
+    "note": "Bordalo II sculpture",
+    "lat": 41.1368949,
+    "lon": -8.6150427
+  },
+  {
+    "name": "Jardim do Morro Vila Nova de Gaia",
+    "category": "Attractions",
+    "fromHotel": "36 min",
+    "note": "Sunset viewpoint",
+    "lat": 41.1376131,
+    "lon": -8.6087267
+  },
+  {
+    "name": "Lot Porto",
+    "category": "Shopping",
+    "fromHotel": "15 min",
+    "note": "Fashion/lifestyle",
+    "lat": 41.1491597,
+    "lon": -8.6140879
+  },
+  {
+    "name": "Mercado do Bolhão Porto",
+    "category": "Shopping",
+    "fromHotel": "19 min",
+    "note": "Market",
+    "lat": 41.1493156,
+    "lon": -8.606947
+  },
+  {
+    "name": "Mercado Ferreira Borges Porto",
+    "category": "Shopping",
+    "fromHotel": "28 min",
+    "note": "Market building",
+    "lat": 41.1418192,
+    "lon": -8.6148896
+  },
+  {
+    "name": "Ohana Market Porto",
+    "category": "Shopping",
+    "fromHotel": "23 min",
+    "note": "Handmade/local",
+    "lat": 41.1451838,
+    "lon": -8.6093347
+  },
+  {
+    "name": "A Pérola do Bolhão Porto",
+    "category": "Shopping",
+    "fromHotel": "22 min",
+    "note": "Historic shop",
+    "lat": 41.1483343,
+    "lon": -8.6067126
+  },
+  {
+    "name": "Sneferu Porto",
+    "category": "Shopping",
+    "fromHotel": "33 min",
+    "note": "Perfume experience",
+    "lat": 41.1502195,
+    "lon": -8.6103497
+  },
+  {
+    "name": "Almada 13 Porto",
+    "category": "Shopping",
+    "fromHotel": "19 min",
+    "note": "Design shop",
+    "lat": 41.1501582,
+    "lon": -8.6122509
+  },
+  {
+    "name": "Fernandes Mattos & Ca Porto",
+    "category": "Shopping",
+    "fromHotel": "19 min",
+    "note": "Traditional goods",
+    "lat": 41.1467024,
+    "lon": -8.6144918
+  },
+  {
+    "name": "Sant'Ana 20 Porto",
+    "category": "Shopping",
+    "fromHotel": "28 min",
+    "note": "Jewelry",
+    "lat": 41.1425181,
+    "lon": -8.613117
+  },
+  {
+    "name": "Caldeirão da Cati Porto",
+    "category": "Shopping",
+    "fromHotel": "34 min",
+    "note": "Ceramics",
+    "lat": 41.1803518,
+    "lon": -8.6041438
+  }
+];
+  window.ROUTES = {"Day 1: Old town + river + sunset": ["Renaissance Porto Lapa Hotel", "Early Porto", "Igreja do Carmo Porto", "Livraria Lello Porto", "Clérigos Tower Porto", "São Bento Station Porto", "Porto Cathedral Sé Porto", "Largo da Pena Ventosa Porto", "Ribeira Porto", "Luís I Bridge Porto", "Jardim do Morro Vila Nova de Gaia"], "Day 2: Bolhão + tiles + shopping/cafés": ["Renaissance Porto Lapa Hotel", "Cookie Club Porto", "Mercado do Bolhão Porto", "A Pérola do Bolhão Porto", "Capela das Almas Porto", "Manteigaria Fábrica de Pastéis de Nata Porto", "Church of St. Ildefonso Porto", "McDonald's Imperial Porto", "Ohana Market Porto", "Caldeirão da Cati Porto"], "Food loop near hotel": ["Renaissance Porto Lapa Hotel", "Nicolau Porto", "Garden Porto Café", "Honest Greens José Falcão Porto", "Ristorante Toscano Porto", "Valentinas Porto", "Restaurante A Taska Porto", "Curb Porto", "KOB by Olivier Porto"], "Gaia / bridge route": ["Renaissance Porto Lapa Hotel", "São Bento Station Porto", "Porto Cathedral Sé Porto", "Luís I Bridge Porto", "Jardim do Morro Vila Nova de Gaia", "Teleférico de Gaia Vila Nova de Gaia", "Half Rabbit Vila Nova de Gaia", "Vila Nova de Gaia Portugal"]};</script>
+  <script src="script.js"></script>
+</body>
+</html>
