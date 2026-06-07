@@ -24,17 +24,47 @@ button {
 #routeControls button {
   min-width: 0;
 }
-#toggleLabels {
-  display: block;
-  width: 100%;
-  box-sizing: border-box;
-  border-radius:12px;
-  padding:10px 12px;
-  margin:0 0 10px 0;
-  background:#f5f5f5;
-  border:1px solid #d1d5db;
-  font-size:14px;
-  cursor:pointer;
+.toggleControl {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 10px 0;
+  cursor: pointer;
+  font-size: 13px;
+  color: #111;
+}
+.toggleControl input {
+  display: none;
+}
+.toggleControl-switch {
+  width: 42px;
+  height: 22px;
+  background: #e5e7eb;
+  border-radius: 999px;
+  position: relative;
+  transition: background .2s ease;
+  flex-shrink: 0;
+}
+.toggleControl-switch::after {
+  content: '';
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  background: #fff;
+  border-radius: 50%;
+  top: 2px;
+  left: 2px;
+  box-shadow: 0 1px 3px rgba(0,0,0,.16);
+  transition: left .2s ease;
+}
+.toggleControl input:checked + .toggleControl-switch {
+  background: #111;
+}
+.toggleControl input:checked + .toggleControl-switch::after {
+  left: calc(100% - 20px);
+}
+.toggleControl.active .toggleControl-text {
+  font-weight: 700;
 }
 #filters button {
   transition: transform .16s ease, opacity .16s ease, filter .16s ease, box-shadow .16s ease, border-color .16s ease;
@@ -54,14 +84,13 @@ button.active { box-shadow:0 0 0 2px rgba(0,0,0,.12); }
   margin:4px 0 10px;
   font-size:14px;
 }
-#toggleLabels.active {
-  background:#111;
-  color:#fff;
-  border-color:#111;
-}
 .routeBox { border-top:1px solid #ddd; padding-top:8px; margin-top:8px; }
 .pin {
   width:18px; height:18px; border-radius:50%; border:3px solid #fff; box-shadow:0 1px 5px #222;
+}
+.pin.selected {
+  box-shadow: 0 0 0 4px rgba(14,165,233,.22), 0 1px 5px rgba(0,0,0,.22);
+  transform: scale(1.1);
 }
 .pin.current { background:#0ea5e9; border-color:#eef2ff; box-shadow:0 1px 6px rgba(14,165,233,.6); }
 .routeInfo, .selectedStops, #distanceInfo { margin:8px 0 0; font-size:13px; color:#333; line-height:1.4; }
@@ -87,7 +116,7 @@ button.active { box-shadow:0 0 0 2px rgba(0,0,0,.12); }
 .popup-title { font-weight:700; margin-bottom:3px; }
 .small { font-size:12px; color:#555; }
 @media (max-width: 800px) {
-  #panel { left:8px; right:8px; bottom:8px; top:auto; width:auto; max-height:42vh; border-radius:16px; }
+  #panel { left:8px; right:8px; bottom:8px; top:auto; width:auto; max-height:32vh; border-radius:16px; }
   #routeControls { grid-template-columns: 1fr; }
   #routeControls button { width: 100%; }
 }

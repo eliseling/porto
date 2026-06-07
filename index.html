@@ -13,6 +13,12 @@
     <h1>Porto</h1>
     <p class="hint">For meir informasjon, legge til stopp, få gangavstand eller Google Maps informasjon: <br>Trykk på ein pin!</p>
     <div id="status">Laster kart…</div>
+    <br>
+    <label class="toggleControl">
+      <input type="checkbox" id="toggleLabels">
+      <span class="toggleControl-switch"></span>
+      <span class="toggleControl-text">Vis navn</span>
+    </label>
     <h2>Velg rute</h2>
     <div id="routeControls">
       <button id="locateMe">Bruk min posisjon</button>
@@ -25,7 +31,6 @@
     </div>
     <h2>Søk</h2>
     <input type="search" id="searchBox" placeholder="Søk etter navn eller kategori">
-    <button id="toggleLabels">Vis navn på kart</button>
     <h2>Ruter</h2>
     <div id="routes"></div>
     <h2>Kategorier</h2>
@@ -523,7 +528,7 @@
     "lon": -8.6041438
   }
 ];
-  window.ROUTES = {"Dag 1: Gamlebyen + elven + solnedgang": ["Renaissance Porto Lapa Hotel", "Early Porto", "Igreja do Carmo Porto", "Livraria Lello Porto", "Clérigos Tower Porto", "São Bento Station Porto", "Porto Cathedral Sé Porto", "Largo da Pena Ventosa Porto", "Ribeira Porto", "Luís I Bridge Porto", "Jardim do Morro Vila Nova de Gaia"], "Dag 2: Bolhão + fliser + shopping/kaféer": ["Renaissance Porto Lapa Hotel", "Cookie Club Porto", "Mercado do Bolhão Porto", "A Pérola do Bolhão Porto", "Capela das Almas Porto", "Manteigaria Fábrica de Pastéis de Nata Porto", "Church of St. Ildefonso Porto", "McDonald's Imperial Porto", "Ohana Market Porto", "Caldeirão da Cati Porto"], "Matløype nær hotellet": ["Renaissance Porto Lapa Hotel", "Nicolau Porto", "Garden Porto Café", "Honest Greens José Falcão Porto", "Ristorante Toscano Porto", "Valentinas Porto", "Restaurante A Taska Porto", "Curb Porto", "KOB by Olivier Porto"], "Gaia / brorute": ["Renaissance Porto Lapa Hotel", "São Bento Station Porto", "Porto Cathedral Sé Porto", "Luís I Bridge Porto", "Jardim do Morro Vila Nova de Gaia", "Teleférico de Gaia Vila Nova de Gaia", "Half Rabbit Vila Nova de Gaia", "Vila Nova de Gaia Portugal"]};</script>
+  window.ROUTES = {"Gamlebyen + elven + solnedgang": ["Renaissance Porto Lapa Hotel", "Early Porto", "Igreja do Carmo Porto", "Livraria Lello Porto", "Clérigos Tower Porto", "São Bento Station Porto", "Porto Cathedral Sé Porto", "Largo da Pena Ventosa Porto", "Ribeira Porto", "Luís I Bridge Porto", "Jardim do Morro Vila Nova de Gaia"], "Bolhão + fliser + shopping/kaféer": ["Renaissance Porto Lapa Hotel", "Cookie Club Porto", "Mercado do Bolhão Porto", "A Pérola do Bolhão Porto", "Capela das Almas Porto", "Manteigaria Fábrica de Pastéis de Nata Porto", "Church of St. Ildefonso Porto", "McDonald's Imperial Porto", "Ohana Market Porto", "Caldeirão da Cati Porto"], "Matløype nær hotellet": ["Renaissance Porto Lapa Hotel", "Nicolau Porto", "Garden Porto Café", "Honest Greens José Falcão Porto", "Ristorante Toscano Porto", "Valentinas Porto", "Restaurante A Taska Porto", "Curb Porto", "KOB by Olivier Porto"], "Gaia / brorute": ["Renaissance Porto Lapa Hotel", "São Bento Station Porto", "Porto Cathedral Sé Porto", "Luís I Bridge Porto", "Jardim do Morro Vila Nova de Gaia", "Teleférico de Gaia Vila Nova de Gaia", "Half Rabbit Vila Nova de Gaia", "Vila Nova de Gaia Portugal"]};</script>
   <script src="script.js"></script>
 </body>
 </html>

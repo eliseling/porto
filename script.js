@@ -36,6 +36,8 @@ let originIsUser = false;
 let originMarker = null;
 let userRoute = null;
 let currentRoute = null;
+let activeRouteName = null;
+let activeRouteStops = null;
 let labelsEnabled = false;
 
 const map = L.map("map").setView([41.147, -8.612], 14);
@@ -48,10 +50,10 @@ const statusEl = document.getElementById("status");
 const groups = {};
 const markersByName = {};
 
-function iconFor(category) {
+function iconFor(category, selected = false) {
   return L.divIcon({
     className: "",
-    html: `<div class="pin" style="background:${getColorFor(category)}"></div>`,
+    html: `<div class="pin${selected ? ' selected' : ''}" style="background:${getColorFor(category)}"></div>`,
     iconSize:[24,24],
     iconAnchor:[12,12]
   });
@@ -88,13 +90,18 @@ function tooltipOptions() {
 }
 
 function refreshTooltips() {
+  const routeNames = activeRouteName ? new Set(window.ROUTES[activeRouteName] || []) : activeRouteStops ? activeRouteStops : null;
   Object.values(markersByName).forEach(marker => {
     if (!marker) return;
     const label = marker.placeName || '';
     marker.unbindTooltip();
     marker.bindTooltip(label, tooltipOptions());
+
     if (labelsEnabled) {
-      marker.openTooltip();
+      const matchesRoute = !routeNames || routeNames.has(marker.placeName);
+      const isVisible = marker._icon ? marker._icon.style.display !== 'none' : true;
+      if (matchesRoute && isVisible) marker.openTooltip();
+      else marker.closeTooltip();
     } else {
       marker.closeTooltip();
     }
@@ -103,10 +110,13 @@ function refreshTooltips() {
 }
 
 function updateLabelToggleButton() {
-  const btn = document.getElementById('toggleLabels');
-  if (!btn) return;
-  btn.textContent = labelsEnabled ? 'Skjul navn på kart' : 'Vis navn på kart';
-  btn.classList.toggle('active', labelsEnabled);
+  const checkbox = document.getElementById('toggleLabels');
+  const labelText = document.querySelector('.toggleControl-text');
+  const label = document.querySelector('.toggleControl');
+  if (!checkbox || !labelText || !label) return;
+  checkbox.checked = labelsEnabled;
+  labelText.textContent = labelsEnabled ? 'Skjul navn' : 'Vis navn';
+  label.classList.toggle('active', labelsEnabled);
 }
 
 function distanceMeters(a, b) {
@@ -180,10 +190,16 @@ function orderStopsByNearest(start, stops) {
 function renderUserRoute() {
   if (userRoute) { map.removeLayer(userRoute); userRoute = null; }
   if (currentRoute) { map.removeLayer(currentRoute); currentRoute = null; }
+  activeRouteName = null;
+  activeRouteStops = selectedStops.size ? new Set(selectedStops) : null;
+  buildPanel();
   const selected = Array.from(selectedStops)
     .map(name => markersByName[name])
     .filter(Boolean);
-  if (!selected.length || !origin) return;
+  if (!selected.length || !origin) {
+    if (labelsEnabled) refreshTooltips();
+    return;
+  }
   const stopPoints = selected.map(marker => ({
     name: marker.placeName,
     lat: marker.getLatLng().lat,
@@ -200,6 +216,7 @@ function renderUserRoute() {
     current = point;
   });
   document.getElementById("distanceInfo").textContent = `Beste rute: ${formatDistance(total)} for ${ordered.length} stopp.`;
+  if (labelsEnabled) refreshTooltips();
 }
 
 function setDefaultOrigin() {
@@ -262,26 +279,38 @@ function updateMarkers() {
     const marker = markersByName[place.name];
     const group = groups[place.category];
     if (!marker || !group) return;
-    
+
     const categoryVisible = map.hasLayer(group);
     const matchesSearch = !query || place.name.toLowerCase().includes(query) || place.category.toLowerCase().includes(query) || place.note.toLowerCase().includes(query);
     const shouldShow = categoryVisible && matchesSearch;
-    
+
     setMarkerVisible(marker, shouldShow);
     marker._matchesSearch = matchesSearch;
+  });
+  if (labelsEnabled) refreshTooltips();
+}
+
+function refreshSelectedMarkers() {
+  Object.values(markersByName).forEach(marker => {
+    if (!marker || !marker.placeCategory) return;
+    const selected = selectedStops.has(marker.placeName);
+    marker.setIcon(iconFor(marker.placeCategory, selected));
   });
 }
 
 function toggleStop(placeName) {
   if (selectedStops.has(placeName)) selectedStops.delete(placeName);
   else selectedStops.add(placeName);
+  activeRouteName = null;
+  activeRouteStops = null;
+  refreshSelectedMarkers();
   updateRoutePanel();
-  renderUserRoute();
   const marker = markersByName[placeName];
   if (marker && marker.isPopupOpen()) {
     const place = window.PLACES.find(p => p.name === placeName);
     if (place) marker.setPopupContent(buildPopup(place));
   }
+  if (labelsEnabled) refreshTooltips();
 }
 
 function directionsUrl(placeName) {
@@ -305,6 +334,7 @@ async function addPlace(place, i, total) {
 
   const marker = L.marker([place.lat, place.lon], { icon: iconFor(place.category) });
   marker.placeName = place.name;
+  marker.placeCategory = place.category;
   marker._matchesSearch = true;
   marker.bindPopup(buildPopup(place));
   marker.bindTooltip(place.name, tooltipOptions());
@@ -317,7 +347,23 @@ async function addPlace(place, i, total) {
 }
 
 function showRoute(routeName) {
+  if (userRoute) { map.removeLayer(userRoute); userRoute = null; }
   if (currentRoute) map.removeLayer(currentRoute);
+
+  selectedStops.clear();
+  refreshSelectedMarkers();
+
+  if (activeRouteName === routeName) {
+    activeRouteName = null;
+    activeRouteStops = null;
+    buildPanel();
+    if (labelsEnabled) refreshTooltips();
+    return;
+  }
+
+  activeRouteName = routeName;
+  activeRouteStops = null;
+  buildPanel();
   const coords = (window.ROUTES[routeName] || [])
     .map(name => markersByName[name])
     .filter(Boolean)
@@ -326,12 +372,15 @@ function showRoute(routeName) {
   if (coords.length < 2) return alert("Ruten lastes fortsatt. Prøv igjen om et øyeblikk.");
   currentRoute = L.polyline(coords, { weight:5, opacity:.85 }).addTo(map);
   map.fitBounds(currentRoute.getBounds(), { padding:[40,40] });
+  refreshTooltips();
 }
 
 function buildPanel() {
-  document.getElementById("routes").innerHTML = Object.keys(window.ROUTES).map(route =>
-    `<div class="routeBox"><b>${route}</b><br><button onclick="showRoute('${route.replaceAll("'", "\\'")}')">Vis rute</button></div>`
-  ).join("");
+  document.getElementById("routes").innerHTML = Object.keys(window.ROUTES).map(route => {
+    const active = activeRouteName === route;
+    const label = active ? 'Fjern rute' : 'Vis rute';
+    return `<div class="routeBox"><b>${route}</b><br><button class="${active ? 'active' : ''}" onclick="showRoute('${route.replaceAll("'", "\\'")}')">${label}</button></div>`;
+  }).join("");
 
   const categories = Array.from(new Set(window.PLACES.map(place => place.category).concat(Object.keys(colors))));
   document.getElementById("filters").innerHTML = categories.map(cat => {
@@ -353,14 +402,13 @@ function toggleCategory(cat) {
   const group = groups[cat];
   if (!group) return;
   const btn = document.getElementById("btn-" + slugify(cat));
-  if (map.hasLayer(group)) { 
-    map.removeLayer(group); 
-    btn.classList.remove("active"); 
-  } else { 
-    group.addTo(map); 
-    btn.classList.add("active"); 
+  if (map.hasLayer(group)) {
+    map.removeLayer(group);
+    btn.classList.remove("active");
+  } else {
+    group.addTo(map);
+    btn.classList.add("active");
   }
-  // Ensure all markers in this group are properly visible/hidden
   window.PLACES.filter(p => p.category === cat).forEach(place => {
     const marker = markersByName[place.name];
     if (marker) {
@@ -368,6 +416,7 @@ function toggleCategory(cat) {
       setMarkerVisible(marker, shouldShow);
     }
   });
+  if (labelsEnabled) refreshTooltips();
 }
 
 document.getElementById("clearCache").onclick = () => location.reload();
@@ -399,15 +448,22 @@ document.getElementById("clearCache").onclick = () => location.reload();
     renderUserRoute();
   };
 
-  document.getElementById("toggleLabels").onclick = () => {
-    labelsEnabled = !labelsEnabled;
-    refreshTooltips();
-  };
+  const toggleLabelsInput = document.getElementById("toggleLabels");
+  if (toggleLabelsInput) {
+    toggleLabelsInput.onchange = (event) => {
+      labelsEnabled = event.target.checked;
+      refreshTooltips();
+    };
+  }
 
   document.getElementById("clearStops").onclick = () => {
     selectedStops.clear();
+    activeRouteName = null;
+    activeRouteStops = null;
+    refreshSelectedMarkers();
     updateRoutePanel();
     if (userRoute) { map.removeLayer(userRoute); userRoute = null; }
+    if (labelsEnabled) refreshTooltips();
     statusEl.textContent = "Valgte stopp er fjernet.";
   };
 
@@ -438,5 +494,5 @@ document.getElementById("clearCache").onclick = () => location.reload();
       }
     });
     updateMarkers();
-    statusEl.textContent = "Ingen informasjon enda, kjem det her om det er noe...";
+    statusEl.textContent = "Ingen informasjon enda, kjem her om det er noke...";
   })();
