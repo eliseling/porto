@@ -36,6 +36,7 @@ let originIsUser = false;
 let originMarker = null;
 let userRoute = null;
 let currentRoute = null;
+let labelsEnabled = false;
 
 const map = L.map("map").setView([41.147, -8.612], 14);
 L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -72,6 +73,40 @@ function getContrastText(hex) {
   const b = parseInt(c.substring(4,6), 16);
   const brightness = (r * 299 + g * 587 + b * 114) / 1000;
   return brightness > 150 ? "#111" : "#fff";
+}
+
+const isTouchDevice = ('ontouchstart' in window || navigator.maxTouchPoints > 0);
+
+function tooltipOptions() {
+  return {
+    permanent: labelsEnabled,
+    direction: 'top',
+    offset: [0, -10],
+    sticky: !labelsEnabled,
+    className: 'placeTooltip'
+  };
+}
+
+function refreshTooltips() {
+  Object.values(markersByName).forEach(marker => {
+    if (!marker) return;
+    const label = marker.placeName || '';
+    marker.unbindTooltip();
+    marker.bindTooltip(label, tooltipOptions());
+    if (labelsEnabled) {
+      marker.openTooltip();
+    } else {
+      marker.closeTooltip();
+    }
+  });
+  updateLabelToggleButton();
+}
+
+function updateLabelToggleButton() {
+  const btn = document.getElementById('toggleLabels');
+  if (!btn) return;
+  btn.textContent = labelsEnabled ? 'Skjul navn på kart' : 'Vis navn på kart';
+  btn.classList.toggle('active', labelsEnabled);
 }
 
 function distanceMeters(a, b) {
@@ -272,6 +307,10 @@ async function addPlace(place, i, total) {
   marker.placeName = place.name;
   marker._matchesSearch = true;
   marker.bindPopup(buildPopup(place));
+  marker.bindTooltip(place.name, tooltipOptions());
+  marker.on('click', () => {
+    if (!labelsEnabled) marker.openTooltip();
+  });
   marker.on('popupopen', () => marker.setPopupContent(buildPopup(place)));
   marker.addTo(groups[place.category]);
   markersByName[place.name] = marker;
@@ -360,6 +399,11 @@ document.getElementById("clearCache").onclick = () => location.reload();
     renderUserRoute();
   };
 
+  document.getElementById("toggleLabels").onclick = () => {
+    labelsEnabled = !labelsEnabled;
+    refreshTooltips();
+  };
+
   document.getElementById("clearStops").onclick = () => {
     selectedStops.clear();
     updateRoutePanel();
@@ -373,6 +417,7 @@ document.getElementById("clearCache").onclick = () => location.reload();
 
   (async function init() {
     buildPanel();
+    updateLabelToggleButton();
     const bounds = [];
     for (let i = 0; i < window.PLACES.length; i++) {
       try {
